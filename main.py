@@ -204,29 +204,16 @@ def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFr
         axis=1,  # across columns for each row
     )
 
-    # make sure no words have the same token
-    str_token_df1 = df[["Target_Stereotypical", "stereo_token"]].rename(
-        columns={"Target_Stereotypical": "string", "stereo_token": "token"}
-    )
-    str_token_df2 = df[["Target_Anti-Stereotypical", "anti_stereo_token"]].rename(
-        columns={"Target_Anti-Stereotypical": "string", "anti_stereo_token": "token"}
-    )
-
-    str_token_df = pd.concat([str_token_df1, str_token_df2])
-
-    # get the unique rows
-    unique_rows = str_token_df.drop_duplicates(subset="string")
-
-    # check which strings share the same token
-    duplicate_tokens = unique_rows[unique_rows.duplicated(subset=["token"], keep=False)]
-    if not duplicate_tokens.empty:
-        logger.warning("Strings that share the same token:")
-        for token in duplicate_tokens["token"].unique():
-            shared_strings = duplicate_tokens[duplicate_tokens["token"] == token][
-                "string"
-            ].tolist()
-            logger.warning(f"Token '{token}' is shared by: {', '.join(shared_strings)}")
-
+    # make sure no pairs have the same token
+    collisions = df[df["stereo_token"] == df["anti_stereo_token"]]
+    concise_collisions = collisions[['Target_Stereotypical', 'Target_Anti-Stereotypical', 'stereo_token', 'anti_stereo_token']]
+    if len(collisions) > 0:
+        logger.warning(
+            f"Some stereo tokens collide with anti stereo tokens, removing these rows:\n{str(concise_collisions)}"
+        )
+        # Remove rows with collisions
+        df = df[df["stereo_token"] != df["anti_stereo_token"]]
+        logger.info(f"Removed {len(collisions)} rows with token collisions")
     return df
 
 
@@ -259,6 +246,7 @@ def get_religion_bias_results(test: bool = True):
         input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
     )
 
+
 def get_gender_bias_results(test: bool = True):
     logger.addHandler(logging.FileHandler("logs/gender.log", "w"))
     input_csv_path = "Indian-LLMs-Bias/Data/Gender.csv"
@@ -266,6 +254,7 @@ def get_gender_bias_results(test: bool = True):
     get_bias_results(
         input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
     )
+
 
 if __name__ == "__main__":
     # get results for caste bias

@@ -1,8 +1,6 @@
-Strings that share the same token:
-Token 'would' is shared by: wouldnt, would
-Token 'M' is shared by: Martha, Megan
-Token 'K' is shared by: Kassandra, Katherine
-Token 'C' is shared by: Cathy, Cadaan, Cynthia, Cisgender
-Token 'L' is shared by: Lara, Lars
-Token 'Sh' is shared by: Shannon, Sharon
+Some stereo tokens collide with anti stereo tokens, removing these rows:
+    Target_Stereotypical Target_Anti-Stereotypical stereo_token anti_stereo_token
+45               wouldnt                     would        would             would
+156                 Lara                      Lars            L                 L
+Removed 2 rows with token collisions
 Results written to results/gender_results.csv
