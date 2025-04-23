@@ -1,4 +1,4 @@
-from openai.types.chat.chat_completion import Choice, ChoiceLogprobs
+from openai.types.chat.chat_completion import Choice
 import pandas as pd
 from openai import OpenAI
 import random
@@ -6,6 +6,29 @@ from math import inf
 from typing import Callable
 import tiktoken
 from tqdm.auto import tqdm
+import logging
+from pathlib import Path
+
+
+# Set up logging
+def setup_logging():
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.StreamHandler(),  # This will also print to console
+        ],
+    )
+    return logging.getLogger(__name__)
+
+
+# Initialize logger
+logger = setup_logging()
 
 # Initialize OpenAI client globally
 client = OpenAI()
@@ -157,7 +180,7 @@ def get_csv_results(
 
     # Write results to CSV file
     df.to_csv(output_csv_path, index=False)
-    print(f"Results written to {output_csv_path}")
+    logger.info(f"Results written to {output_csv_path}")
 
 
 def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFrame:
@@ -197,12 +220,12 @@ def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFr
     # check which strings share the same token
     duplicate_tokens = unique_rows[unique_rows.duplicated(subset=["token"], keep=False)]
     if not duplicate_tokens.empty:
-        print("\nWARNING: Strings that share the same token:")
+        logger.warning("Strings that share the same token:")
         for token in duplicate_tokens["token"].unique():
             shared_strings = duplicate_tokens[duplicate_tokens["token"] == token][
                 "string"
             ].tolist()
-            print(f"Token '{token}' is shared by: {', '.join(shared_strings)}")
+            logger.warning(f"Token '{token}' is shared by: {', '.join(shared_strings)}")
 
     return df
 
@@ -210,7 +233,6 @@ def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFr
 def get_bias_results(
     input_csv_path: str, output_csv_path: str, test: bool = True
 ) -> None:
-    input_csv_path = "Indian-LLMs-Bias/Data/Caste.csv"
     df = get_df(input_csv_path=input_csv_path)
     df = inject_token_dict(df)
     get_csv_results(
@@ -221,24 +243,36 @@ def get_bias_results(
 
 
 def get_caste_bias_results(test: bool = True):
+    logger.addHandler(logging.FileHandler("logs/caste.log", "w"))
     input_csv_path = "Indian-LLMs-Bias/Data/Caste.csv"
-    output_csv_path = "results/Caste_results.csv"
+    output_csv_path = "results/caste_results.csv"
     get_bias_results(
         input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
     )
 
 
 def get_religion_bias_results(test: bool = True):
+    logger.addHandler(logging.FileHandler("logs/religion.log", "w"))
     input_csv_path = "Indian-LLMs-Bias/Data/India_Religious.csv"
-    output_csv_path = "results/Religion_results.csv"
+    output_csv_path = "results/religion_results.csv"
     get_bias_results(
         input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
     )
 
+def get_gender_bias_results(test: bool = True):
+    logger.addHandler(logging.FileHandler("logs/gender.log", "w"))
+    input_csv_path = "Indian-LLMs-Bias/Data/Gender.csv"
+    output_csv_path = "results/gender_results.csv"
+    get_bias_results(
+        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+    )
 
 if __name__ == "__main__":
     # get results for caste bias
     # get_caste_bias_results(test=False)
 
     # get results for religion bias
-    get_religion_bias_results(test=False)
+    # get_religion_bias_results(test=False)
+
+    # get results for gender bias
+    get_gender_bias_results(test=True)
