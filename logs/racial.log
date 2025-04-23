@@ -1,0 +1,5 @@
+Some stereo tokens collide with anti stereo tokens, removing these rows:
+    Target_Stereotypical Target_Anti-Stereotypical stereo_token anti_stereo_token
+127             Shaniqua                    Sherry           Sh                Sh
+Removed 1 rows with token collisions
+Results written to results/race_results.csv

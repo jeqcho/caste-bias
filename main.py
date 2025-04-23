@@ -21,10 +21,17 @@ def setup_logging():
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.StreamHandler(),  # This will also print to console
+            logging.StreamHandler(),  
         ],
     )
     return logging.getLogger(__name__)
+
+
+def reset_logging(filename: str):
+    for handler in logger.handlers[:]:  # remove all old handlers
+        logger.removeHandler(handler)
+    logger.addHandler(logging.StreamHandler()) # This will print to console
+    logger.addHandler(logging.FileHandler(filename, "w"))
 
 
 # Initialize logger
@@ -88,11 +95,28 @@ def get_df(input_csv_path: str) -> pd.DataFrame:
     df = df.drop(df.columns[0], axis=1)
 
     # Remove rows with commas in Target_Stereotypical column
+    rows_with_commas = df[df["Target_Stereotypical"].str.contains(",", na=False)]
+    if len(rows_with_commas) > 0:
+        logger.warning(f"Removing {len(rows_with_commas)} rows with commas in Target_Stereotypical column")
+        logger.warning(f"Removed rows:\n{rows_with_commas}")
     df = df[~df["Target_Stereotypical"].str.contains(",", na=False)]
 
     # strip square brackets and quotes
-    df["Target_Stereotypical"] = df["Target_Stereotypical"].str.strip("[]'")
-    df["Target_Anti-Stereotypical"] = df["Target_Anti-Stereotypical"].str.strip("[]'")
+    for col in ["Target_Stereotypical", "Target_Anti-Stereotypical"]:
+        # Assert first two chars are ['
+        assert all(df[col].str[:2] == "['"), (
+            f"Expected [', got {df[col].str[:2].unique()}"
+        )
+        # Assert last two chars are ']
+        assert all(df[col].str[-2:] == "']"), (
+            f"Expected '], got {df[col].str[-2:].unique()}"
+        )
+        # Remove first and last two chars
+        df[col] = df[col].str[2:-2]
+        # Assert no more [] in value
+        assert not any(df[col].str.contains(r"[\[\]]")), (
+            f"Found square brackets in {col}"
+        )
 
     return df
 
@@ -206,7 +230,14 @@ def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFr
 
     # make sure no pairs have the same token
     collisions = df[df["stereo_token"] == df["anti_stereo_token"]]
-    concise_collisions = collisions[['Target_Stereotypical', 'Target_Anti-Stereotypical', 'stereo_token', 'anti_stereo_token']]
+    concise_collisions = collisions[
+        [
+            "Target_Stereotypical",
+            "Target_Anti-Stereotypical",
+            "stereo_token",
+            "anti_stereo_token",
+        ]
+    ]
     if len(collisions) > 0:
         logger.warning(
             f"Some stereo tokens collide with anti stereo tokens, removing these rows:\n{str(concise_collisions)}"
@@ -230,7 +261,7 @@ def get_bias_results(
 
 
 def get_caste_bias_results(test: bool = True):
-    logger.addHandler(logging.FileHandler("logs/caste.log", "w"))
+    reset_logging("logs/caste.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Caste.csv"
     output_csv_path = "results/caste_results.csv"
     get_bias_results(
@@ -239,7 +270,7 @@ def get_caste_bias_results(test: bool = True):
 
 
 def get_religion_bias_results(test: bool = True):
-    logger.addHandler(logging.FileHandler("logs/religion.log", "w"))
+    reset_logging("logs/religion.log")
     input_csv_path = "Indian-LLMs-Bias/Data/India_Religious.csv"
     output_csv_path = "results/religion_results.csv"
     get_bias_results(
@@ -248,9 +279,18 @@ def get_religion_bias_results(test: bool = True):
 
 
 def get_gender_bias_results(test: bool = True):
-    logger.addHandler(logging.FileHandler("logs/gender.log", "w"))
+    reset_logging("logs/gender.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Gender.csv"
     output_csv_path = "results/gender_results.csv"
+    get_bias_results(
+        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+    )
+
+
+def get_racial_bias_results(test: bool = True):
+    reset_logging("logs/racial.log")
+    input_csv_path = "Indian-LLMs-Bias/Data/Race.csv"
+    output_csv_path = "results/race_results.csv"
     get_bias_results(
         input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
     )
@@ -264,4 +304,7 @@ if __name__ == "__main__":
     # get_religion_bias_results(test=False)
 
     # get results for gender bias
-    get_gender_bias_results(test=True)
+    # get_gender_bias_results(test=False)
+
+    # get results for racial bias
+    get_racial_bias_results(test=False)

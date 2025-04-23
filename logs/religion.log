@@ -1,5 +1,1 @@
-Strings that share the same token:
-Token 'Mus' is shared by: Muslim, Muslims
-Token 'Christian' is shared by: Christian, Christianity
-Token 'J' is shared by: Jain, Jainism
 Results written to results/religion_results.csv
