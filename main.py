@@ -47,6 +47,7 @@ def get_openai_response(user_message: str, model_name: str = "gpt-4") -> Choice:
         top_logprobs=20,
         temperature=0,
         max_completion_tokens=10,
+        store=True,
         seed=1,
     )
 
