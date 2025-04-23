@@ -1,4 +1,4 @@
-from openai.types.chat.chat_completion import ChoiceLogprobs
+from openai.types.chat.chat_completion import Choice, ChoiceLogprobs
 import pandas as pd
 from openai import OpenAI
 import random
@@ -27,7 +27,7 @@ def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
 
 def get_openai_response(
     user_message: str, client: OpenAI, model_name: str = "gpt-4"
-) -> ChoiceLogprobs:
+) -> Choice:
     """
     Get response from OpenAI API for a given stereotype, anti-stereotype, and sentence.
 
@@ -45,14 +45,14 @@ def get_openai_response(
         logprobs=True,
         top_logprobs=20,
         temperature=0,
-        max_completion_tokens=1,
+        max_completion_tokens=10,
         seed=1,
     )
 
-    logit_result = completion.choices[0].logprobs
-    assert logit_result is not None
+    result = completion.choices[0]
+    assert result is not None
 
-    return logit_result
+    return result
 
 
 def get_csv_results(
@@ -78,6 +78,11 @@ def get_csv_results(
     def process_row(row: pd.Series) -> pd.Series:
         stereo_prefix = row["Target_Stereotypical"]
         anti_stereo_prefix = row["Target_Anti-Stereotypical"]
+
+        # strip square brackets and quotes
+        stereo_prefix = stereo_prefix.strip("[]'")
+        anti_stereo_prefix = anti_stereo_prefix.strip("[]'")
+
         user_message = get_user_message(
             stereo=stereo_prefix,
             antistereo=anti_stereo_prefix,
@@ -85,40 +90,56 @@ def get_csv_results(
         )
         response = get_openai_response(user_message, client=client)
 
-        # strip square brackets and quotes
-        stereo_prefix = stereo_prefix.strip("[]'")
-        anti_stereo_prefix = anti_stereo_prefix.strip("[]'")
-        
         stereo_token = token_dict[stereo_prefix]
         anti_stereo_token = token_dict[anti_stereo_prefix]
 
+        first_10_tokens = response.message.content
+        refusal = response.message.refusal
+
+        # get the LogProbs object
+        response = response.logprobs
+        assert response is not None
         assert response.content is not None
+
         log_probs = response.content[0].top_logprobs
         top_token = response.content[0].token
+        top_logit = response.content[0].logprob
 
         stereo_logit: float = -inf  # if not in top 20, then likely negative infinity
         anti_stereo_logit: float = -inf
+        top_non_stereo_logit: float = -inf
         for log_prob in log_probs:
             if log_prob.token == stereo_token:
                 stereo_logit = log_prob.logprob
             elif log_prob.token == anti_stereo_token:
                 anti_stereo_logit = log_prob.logprob
+            elif log_prob.logprob > top_non_stereo_logit:
+                top_non_stereo_logit = log_prob.logprob
+                top_non_stereo_token = log_prob.token
 
+        assert top_non_stereo_logit > -inf, (
+            "top_non_stereo_logit should not be negative infinity"
+        )
         both_neg_inf = int((stereo_logit == -inf) and (anti_stereo_logit == -inf))
 
         stereo_token_is_top = int(top_token == stereo_token)
         anti_stereo_token_is_top = int(top_token == anti_stereo_token)
 
         if both_neg_inf:
-            # set this to zero
+            # set this to zero (non-opinionated)
             prefer_stereo_over_anti_stereo = 0
         else:
             prefer_stereo_over_anti_stereo = int(stereo_logit > anti_stereo_logit)
 
         result = {
+            "first_10_tokens": first_10_tokens,
+            "refusal": refusal,
+            "top_non_stereo_token": top_non_stereo_token,
+            "top_non_stereo_logit": top_non_stereo_logit,
             "stereo_logit": stereo_logit,
             "anti_stereo_logit": anti_stereo_logit,
             "top_token": top_token,
+            "top_logit": top_logit,
             "both_neg_inf": both_neg_inf,
             "stereo_token_is_top": stereo_token_is_top,
             "anti_stereo_token_is_top": anti_stereo_token_is_top,
@@ -134,7 +155,7 @@ def get_csv_results(
     print(f"Results written to {output_csv_path}")
 
 
-def get_caste_bias_results(client: OpenAI):
+def get_caste_bias_results(client: OpenAI, test: bool = False):
     token_dict = {
         "Dalit": "Dal",
         "Dalits": "Dal",
@@ -145,12 +166,12 @@ def get_caste_bias_results(client: OpenAI):
         input_csv_path="Indian-LLMs-Bias/Data/Caste.csv",
         output_csv_path="results/Caste_results.csv",
         token_dict=token_dict,
-        test=True,
         client=client,
+        test=test
     )
 
 
-def get_religion_bias_results(client: OpenAI):
+def get_religion_bias_results(client: OpenAI, test: bool = False):
     token_dict = {
         "Hindu": "H",
         "Hindus": "H",
@@ -174,13 +195,14 @@ def get_religion_bias_results(client: OpenAI):
         output_csv_path="results/Religion_results.csv",
         token_dict=token_dict,
         client=client,
+        test=test
     )
 
 
 if __name__ == "__main__":
     client = OpenAI()
     # get results for caste bias
-    # get_caste_bias_results(client)
+    get_caste_bias_results(client, test=True)
 
     # get results for religion bias
-    get_religion_bias_results(client)
+    # get_religion_bias_results(client)
