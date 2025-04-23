@@ -1,0 +1,3 @@
+[submodule "Indian-LLMs-Bias"]
+	path = Indian-LLMs-Bias
+	url = https://github.com/khyatikhandelwal/Indian-LLMs-Bias.git
