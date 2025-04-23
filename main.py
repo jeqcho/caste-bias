@@ -21,7 +21,7 @@ def setup_logging():
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.StreamHandler(),  
+            logging.StreamHandler(),
         ],
     )
     return logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def setup_logging():
 def reset_logging(filename: str):
     for handler in logger.handlers[:]:  # remove all old handlers
         logger.removeHandler(handler)
-    logger.addHandler(logging.StreamHandler()) # This will print to console
+    logger.addHandler(logging.StreamHandler())  # This will print to console
     logger.addHandler(logging.FileHandler(filename, "w"))
 
 
@@ -59,7 +59,9 @@ def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
     return f"{DEMONSTRATION} [{first}/{second}] {sentence}: "
 
 
-def get_openai_response(user_message: str, model_name: str = "gpt-4") -> Choice:
+def get_openai_response(
+    user_message: str, model_name: str = "gpt-4", seed: int | None = None
+) -> Choice:
     """
     Get response from OpenAI API for a given stereotype, anti-stereotype, and sentence.
 
@@ -78,7 +80,7 @@ def get_openai_response(user_message: str, model_name: str = "gpt-4") -> Choice:
         temperature=0,
         max_completion_tokens=10,
         store=True,
-        seed=1,
+        seed=seed,
     )
 
     result = completion.choices[0]
@@ -97,7 +99,9 @@ def get_df(input_csv_path: str) -> pd.DataFrame:
     # Remove rows with commas in Target_Stereotypical column
     rows_with_commas = df[df["Target_Stereotypical"].str.contains(",", na=False)]
     if len(rows_with_commas) > 0:
-        logger.warning(f"Removing {len(rows_with_commas)} rows with commas in Target_Stereotypical column")
+        logger.warning(
+            f"Removing {len(rows_with_commas)} rows with commas in Target_Stereotypical column"
+        )
         logger.warning(f"Removed rows:\n{rows_with_commas}")
     df = df[~df["Target_Stereotypical"].str.contains(",", na=False)]
 
@@ -122,9 +126,7 @@ def get_df(input_csv_path: str) -> pd.DataFrame:
 
 
 def get_csv_results(
-    df: pd.DataFrame,
-    output_csv_path: str,
-    test: bool = True,
+    df: pd.DataFrame, output_csv_path: str, test: bool = True, seed: int | None = None
 ) -> None:
     # test random 5 rows
     if test:
@@ -139,7 +141,7 @@ def get_csv_results(
             antistereo=anti_stereo_prefix,
             sentence=row["Sentence"],
         )
-        response = get_openai_response(user_message)
+        response = get_openai_response(user_message, seed=seed)
 
         stereo_token = row["stereo_token"]
         anti_stereo_token = row["anti_stereo_token"]
@@ -206,6 +208,16 @@ def get_csv_results(
     df.to_csv(output_csv_path, index=False)
     logger.info(f"Results written to {output_csv_path}")
 
+    # Get quick result
+    # print the average prefer_stereo_over_anti_stereo condition on both_neg_inf=0, and also the unconditional
+    valid_cases = df[df["both_neg_inf"] == 0]
+    avg_preference_valid = valid_cases["prefer_stereo_over_anti_stereo"].mean()
+    avg_preference_all = df["prefer_stereo_over_anti_stereo"].mean()
+
+    logger.info("Average preference for stereotypical over anti-stereotypical:")
+    logger.info(f"- When both_neg_inf=0: {avg_preference_valid * 100:.2f}%")
+    logger.info(f"- Unconditional: {avg_preference_all * 100:.2f}%")
+
 
 def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFrame:
     tokenizer = tiktoken.encoding_for_model(model_name)
@@ -249,62 +261,74 @@ def inject_token_dict(df: pd.DataFrame, model_name: str = "gpt-4o") -> pd.DataFr
 
 
 def get_bias_results(
-    input_csv_path: str, output_csv_path: str, test: bool = True
+    input_csv_path: str,
+    output_csv_path: str,
+    test: bool = True,
+    seed: int | None = None,
 ) -> None:
     df = get_df(input_csv_path=input_csv_path)
     df = inject_token_dict(df)
-    get_csv_results(
-        df=df,
-        output_csv_path=output_csv_path,
-        test=test,
-    )
+    get_csv_results(df=df, output_csv_path=output_csv_path, test=test, seed=seed)
 
 
-def get_caste_bias_results(test: bool = True):
+def get_caste_bias_results(test: bool = True, seed: int | None = None):
     reset_logging("logs/caste.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Caste.csv"
     output_csv_path = "results/caste_results.csv"
     get_bias_results(
-        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+        input_csv_path=input_csv_path,
+        output_csv_path=output_csv_path,
+        test=test,
+        seed=seed,
     )
 
 
-def get_religion_bias_results(test: bool = True):
+def get_religion_bias_results(test: bool = True, seed: int | None = None):
     reset_logging("logs/religion.log")
     input_csv_path = "Indian-LLMs-Bias/Data/India_Religious.csv"
     output_csv_path = "results/religion_results.csv"
     get_bias_results(
-        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+        input_csv_path=input_csv_path,
+        output_csv_path=output_csv_path,
+        test=test,
+        seed=seed,
     )
 
 
-def get_gender_bias_results(test: bool = True):
+def get_gender_bias_results(test: bool = True, seed: int | None = None):
     reset_logging("logs/gender.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Gender.csv"
     output_csv_path = "results/gender_results.csv"
     get_bias_results(
-        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+        input_csv_path=input_csv_path,
+        output_csv_path=output_csv_path,
+        test=test,
+        seed=seed,
     )
 
 
-def get_racial_bias_results(test: bool = True):
+def get_racial_bias_results(test: bool = True, seed: int | None = None):
     reset_logging("logs/racial.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Race.csv"
     output_csv_path = "results/race_results.csv"
     get_bias_results(
-        input_csv_path=input_csv_path, output_csv_path=output_csv_path, test=test
+        input_csv_path=input_csv_path,
+        output_csv_path=output_csv_path,
+        test=test,
+        seed=seed,
     )
 
 
 if __name__ == "__main__":
+    seed: int | None = 1
     # get results for caste bias
-    # get_caste_bias_results(test=False)
+    get_caste_bias_results(test=False, seed=seed)
 
     # get results for religion bias
-    # get_religion_bias_results(test=False)
+    # get_religion_bias_results(test=False, seed=seed)
 
     # get results for gender bias
-    # get_gender_bias_results(test=False)
+    # get_gender_bias_results(test=False, seed=seed)
 
     # get results for racial bias
-    get_racial_bias_results(test=False)
+    # get_racial_bias_results(test=False, seed=seed)
