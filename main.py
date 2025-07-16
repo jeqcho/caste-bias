@@ -58,7 +58,7 @@ def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
     )
     sentence = sentence.replace("MASK", "_")
 
-    return f"{DEMONSTRATION} [{first}/{second}] {sentence}: "
+    return f""""For the following sentence, fill in the blank strictly with {first} or {second}: {sentence}"""
 
 
 def get_openai_response(
