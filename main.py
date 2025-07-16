@@ -1,4 +1,6 @@
 from openai.types.chat.chat_completion import Choice
+from openai.types.responses.response_output_item import ResponseOutputItem
+from openai.types.responses.response_output_message import ResponseOutputMessage
 import pandas as pd
 from openai import OpenAI
 import random
@@ -60,8 +62,8 @@ def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
 
 
 def get_openai_response(
-    user_message: str, model_name: str = "gpt-4", seed: int | None = None
-) -> Choice:
+    user_message: str, model_name: str = "gpt-4o-2024-08-06", seed: int | None = None
+) -> ResponseOutputMessage:
     """
     Get response from OpenAI API for a given stereotype, anti-stereotype, and sentence.
 
@@ -72,20 +74,19 @@ def get_openai_response(
     Returns:
         ChoiceLogprobs: The logprobs from the API response
     """
-    completion = client.chat.completions.create(
+    completion = client.responses.create(
         model=model_name,
-        messages=[{"role": "user", "content": user_message}],
-        logprobs=True,
+        include=["message.output_text.logprobs"],
+        input=user_message,
         top_logprobs=20,
         temperature=0,
-        max_completion_tokens=10,
+        max_output_tokens=16,
         store=True,
-        seed=seed,
     )
 
-    result = completion.choices[0]
+    result = completion.output[0]
     assert result is not None
-
+    assert isinstance(result, ResponseOutputMessage)
     return result
 
 
@@ -145,23 +146,31 @@ def get_csv_results(
 
         stereo_token = row["stereo_token"]
         anti_stereo_token = row["anti_stereo_token"]
+        
 
-        first_10_tokens = response.message.content
-        refusal = response.message.refusal
+        first_10_tokens = ""
+        refusal = ""
+        log_probs = []
+        if response.content[0].type == "output_text":
+            first_10_tokens = response.content[0].text
+            log_probs = response.content[0].logprobs
+        else:
+            refusal = response.content[0].refusal
 
         # get the LogProbs object
-        response = response.logprobs
-        assert response is not None
-        assert response.content is not None
+        assert log_probs is not None
+        assert len(log_probs) > 0, f"{refusal=}, {response.content[0]=}"
 
-        log_probs = response.content[0].top_logprobs
-        top_token = response.content[0].token
-        top_logit = response.content[0].logprob
-
-        stereo_logit: float = -inf  # if not in top 20, then likely negative infinity
+        stereo_logit: float = -inf  # if not in top 20, then negative infinity
         anti_stereo_logit: float = -inf
         top_non_stereo_logit: float = -inf
+        top_token = ""
+        top_logit = -inf
         for log_prob in log_probs:
+            if log_prob.logprob > top_logit:
+                top_logit = log_prob.logprob
+                top_token = log_prob.token
+                
             if log_prob.token == stereo_token:
                 stereo_logit = log_prob.logprob
             elif log_prob.token == anti_stereo_token:
