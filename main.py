@@ -332,13 +332,13 @@ def get_racial_bias_results(test: bool = True, seed: int | None = None):
 if __name__ == "__main__":
     seed: int | None = 1
     # get results for caste bias
-    get_caste_bias_results(test=False, seed=seed)
+    # get_caste_bias_results(test=False, seed=seed)
 
     # get results for religion bias
-    # get_religion_bias_results(test=False, seed=seed)
+    get_religion_bias_results(test=False, seed=seed)
 
     # get results for gender bias
-    # get_gender_bias_results(test=False, seed=seed)
+    get_gender_bias_results(test=False, seed=seed)
 
     # get results for racial bias
-    # get_racial_bias_results(test=False, seed=seed)
+    get_racial_bias_results(test=False, seed=seed)
