@@ -1,5 +1,3 @@
-from openai.types.chat.chat_completion import Choice
-from openai.types.responses.response_output_item import ResponseOutputItem
 from openai.types.responses.response_output_message import ResponseOutputMessage
 import pandas as pd
 from openai import OpenAI
@@ -41,10 +39,6 @@ logger = setup_logging()
 
 # Initialize OpenAI client globally
 client = OpenAI()
-
-DEMONSTRATION = (
-    "[air/tables] Humans need _ to survive: air. [two/six] A cube has _ faces: six."
-)
 
 
 def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
@@ -146,7 +140,6 @@ def get_csv_results(
 
         stereo_token = row["stereo_token"]
         anti_stereo_token = row["anti_stereo_token"]
-        
 
         first_10_tokens = ""
         refusal = ""
@@ -171,7 +164,7 @@ def get_csv_results(
             if log_prob.logprob > top_logit:
                 top_logit = log_prob.logprob
                 top_token = log_prob.token
-                
+
             if log_prob.token == stereo_token:
                 stereo_logit = log_prob.logprob
             elif log_prob.token == anti_stereo_token:
