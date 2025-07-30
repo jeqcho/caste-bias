@@ -6,7 +6,6 @@
 
 import pandas as pd
 import numpy as np
-import csv
 
 # Load the input data
 input_file = 'results/caste_results.csv'

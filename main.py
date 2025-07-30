@@ -8,6 +8,11 @@ import tiktoken
 from tqdm.auto import tqdm
 import logging
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 # Set up logging
@@ -38,7 +43,7 @@ def reset_logging(filename: str):
 logger = setup_logging()
 
 # Initialize OpenAI client globally
-client = OpenAI()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
@@ -56,7 +61,7 @@ def get_user_message(stereo: str, antistereo: str, sentence: str) -> str:
 
 
 def get_openai_response(
-    user_message: str, model_name: str = "gpt-4o", seed: int | None = None
+    user_message: str, model_name: str = "gpt-4o"
 ) -> ResponseOutputMessage:
     """
     Get response from OpenAI API for a given stereotype, anti-stereotype, and sentence.
@@ -121,7 +126,7 @@ def get_df(input_csv_path: str) -> pd.DataFrame:
 
 
 def get_csv_results(
-    df: pd.DataFrame, output_csv_path: str, test: bool = True, seed: int | None = None
+    df: pd.DataFrame, output_csv_path: str, test: bool = True
 ) -> None:
     # test random 5 rows
     if test:
@@ -136,7 +141,7 @@ def get_csv_results(
             antistereo=anti_stereo_prefix,
             sentence=row["Sentence"],
         )
-        response = get_openai_response(user_message, seed=seed)
+        response = get_openai_response(user_message)
 
         stereo_token = row["stereo_token"]
         anti_stereo_token = row["anti_stereo_token"]
@@ -267,14 +272,13 @@ def get_bias_results(
     input_csv_path: str,
     output_csv_path: str,
     test: bool = True,
-    seed: int | None = None,
 ) -> None:
     df = get_df(input_csv_path=input_csv_path)
     df = inject_token_dict(df)
-    get_csv_results(df=df, output_csv_path=output_csv_path, test=test, seed=seed)
+    get_csv_results(df=df, output_csv_path=output_csv_path, test=test)
 
 
-def get_caste_bias_results(test: bool = True, seed: int | None = None):
+def get_caste_bias_results(test: bool = True):
     reset_logging("logs/caste.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Caste.csv"
     output_csv_path = "results/caste_results.csv"
@@ -282,11 +286,10 @@ def get_caste_bias_results(test: bool = True, seed: int | None = None):
         input_csv_path=input_csv_path,
         output_csv_path=output_csv_path,
         test=test,
-        seed=seed,
     )
 
 
-def get_religion_bias_results(test: bool = True, seed: int | None = None):
+def get_religion_bias_results(test: bool = True):
     reset_logging("logs/religion.log")
     input_csv_path = "Indian-LLMs-Bias/Data/India_Religious.csv"
     output_csv_path = "results/religion_results.csv"
@@ -294,11 +297,10 @@ def get_religion_bias_results(test: bool = True, seed: int | None = None):
         input_csv_path=input_csv_path,
         output_csv_path=output_csv_path,
         test=test,
-        seed=seed,
     )
 
 
-def get_gender_bias_results(test: bool = True, seed: int | None = None):
+def get_gender_bias_results(test: bool = True):
     reset_logging("logs/gender.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Gender.csv"
     output_csv_path = "results/gender_results.csv"
@@ -306,11 +308,10 @@ def get_gender_bias_results(test: bool = True, seed: int | None = None):
         input_csv_path=input_csv_path,
         output_csv_path=output_csv_path,
         test=test,
-        seed=seed,
     )
 
 
-def get_racial_bias_results(test: bool = True, seed: int | None = None):
+def get_racial_bias_results(test: bool = True):
     reset_logging("logs/racial.log")
     input_csv_path = "Indian-LLMs-Bias/Data/Race.csv"
     output_csv_path = "results/race_results.csv"
@@ -318,20 +319,18 @@ def get_racial_bias_results(test: bool = True, seed: int | None = None):
         input_csv_path=input_csv_path,
         output_csv_path=output_csv_path,
         test=test,
-        seed=seed,
     )
 
 
 if __name__ == "__main__":
-    seed: int | None = 1
     # get results for caste bias
-    # get_caste_bias_results(test=False, seed=seed)
+    get_caste_bias_results(test=False)
 
     # get results for religion bias
-    get_religion_bias_results(test=False, seed=seed)
+    # get_religion_bias_results(test=False)
 
     # get results for gender bias
-    get_gender_bias_results(test=False, seed=seed)
+    # get_gender_bias_results(test=False)
 
     # get results for racial bias
-    get_racial_bias_results(test=False, seed=seed)
+    # get_racial_bias_results(test=False)

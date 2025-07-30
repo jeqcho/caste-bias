@@ -34,9 +34,17 @@ caste-bias/
 ### Prerequisites
 
 1. **Python 3.8+**
-2. **OpenAI API Key** - Set as environment variable:
+2. **OpenAI API Key** - Choose one of the following methods:
+   
+   **Option A: Environment Variable**
    ```bash
    export OPENAI_API_KEY="your-api-key-here"
+   ```
+   
+   **Option B: .env File (Recommended)**
+   Create a `.env` file in the project root:
+   ```bash
+   OPENAI_API_KEY=your-api-key-here
    ```
 
 ### Installation
